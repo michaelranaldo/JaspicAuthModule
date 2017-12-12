@@ -2,18 +2,32 @@ package uk.co.ranaldo.playground.jaspicauthmodule;
 
 import java.util.Map;
 import javax.security.auth.Subject;
+import javax.security.auth.callback.Callback;
 import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.message.AuthException;
 import javax.security.auth.message.AuthStatus;
 import javax.security.auth.message.MessageInfo;
 import javax.security.auth.message.MessagePolicy;
+import javax.security.auth.message.callback.CallerPrincipalCallback;
+import javax.security.auth.message.callback.GroupPrincipalCallback;
 import javax.security.auth.message.module.ServerAuthModule;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  *
  * @author Michael Ranaldo <michael@ranaldo.co.uk>
  */
 public class JaspicAuthModule implements ServerAuthModule {
+    
+    /**
+     * List the message types which we respond to (ie only Http requests and responses delivered via a servlet).
+     * Hide the warnings from Request and Response as we're dealing with a basic application.
+     * 
+     */
+    @SuppressWarnings("rawtypes")
+    protected static final Class[] SUPPORTED_MESSAGE_TYPES = new Class[] {
+        HttpServletRequest.class, HttpServletResponse.class };
     
     private CallbackHandler handler;
 
@@ -37,8 +51,7 @@ public class JaspicAuthModule implements ServerAuthModule {
      */
     @Override
     public Class[] getSupportedMessageTypes() {
-        throw new UnsupportedOperationException("Not supported yet. "
-                + "Ironic; he could support other message types, but not himself.");
+        return SUPPORTED_MESSAGE_TYPES;
     }
 
     /**
@@ -53,6 +66,17 @@ public class JaspicAuthModule implements ServerAuthModule {
     @Override
     public AuthStatus validateRequest(MessageInfo messageInfo, Subject clientSubject, Subject serviceSubject) throws AuthException {
         System.out.println("ValidateRequest Called. ");
+        HttpServletRequest request = (HttpServletRequest) messageInfo.getRequestMessage();
+        
+        String user = request.getParameter("user");
+        String group = request.getParameter("group");
+        
+        System.out.println("validateRequest called.");
+        System.out.println("User = " + user);
+        System.out.println("Group = " + group);
+        
+        authenticateUser(user, group, clientSubject, serviceSubject);
+        
         return AuthStatus.SUCCESS;
     }
 
@@ -69,14 +93,30 @@ public class JaspicAuthModule implements ServerAuthModule {
     }
 
     /**
-     * Clear all principals from the subject
+     * Clear all principals from the subject.
      * @param messageInfo
      * @param subject
      * @throws AuthException 
      */
     @Override
     public void cleanSubject(MessageInfo messageInfo, Subject subject) throws AuthException {
-        throw new UnsupportedOperationException("Not supported yet.");
+        if (subject != null) {
+            subject.getPrincipals().clear();
+        }
     }
 
+    /**
+     * 
+     */
+    private void authenticateUser(String user, String group, Subject clientSubject, Subject serverSubject) {
+        System.out.println("Authenticating user " + user + " in group " + group);
+        CallerPrincipalCallback callerPrincipalCallback = new CallerPrincipalCallback(clientSubject, user);
+        GroupPrincipalCallback groupPrincipalCallback = new GroupPrincipalCallback(clientSubject, new String[]{group});
+        
+        try {
+            handler.handle(new Callback[] { callerPrincipalCallback, groupPrincipalCallback });
+        } catch (Exception godException){
+            System.out.println(godException.getMessage());
+        }
+    }
 }
