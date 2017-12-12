@@ -11,7 +11,7 @@ import javax.security.auth.message.module.ServerAuthModule;
 
 /**
  *
- * @author Michael Ranado <michael@ranaldo.co.uk>
+ * @author Michael Ranaldo <michael@ranaldo.co.uk>
  */
 public class JaspicAuthModule implements ServerAuthModule {
     
